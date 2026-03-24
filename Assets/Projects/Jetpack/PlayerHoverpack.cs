@@ -1,15 +1,17 @@
 using UnityEngine;
 using System;
 using UnityEngine.UI;
+using UnityEditor;
 
-public class PlayerJetpack : MonoBehaviour
+public class PlayerHoverpack : MonoBehaviour
 {
-    [Header("Jetpack")]
+    [Header("Hoverpack")]
     public float jetpackForce = 12f;
     public int maxFuel = 200;
     public int fuel = 200;
     public int fuelUsePerTick = 1;
     public int fuelRechargePerTick = 3;
+    public float hoverDistance = 4.0f;
     public Slider slider;
 
     [Header("Ground Detection")]
@@ -18,6 +20,7 @@ public class PlayerJetpack : MonoBehaviour
 
     private Rigidbody2D rb;
     private bool grounded;
+    private bool topHeight;
     private bool isHoldingJump;
 
     public static Action<int> OnChangeFuel;
@@ -36,6 +39,7 @@ public class PlayerJetpack : MonoBehaviour
     void FixedUpdate()
     {
         grounded = IsGrounded();
+        topHeight = IsTopHeight();
 
         // Recharge fuel on ground
         if (grounded)
@@ -47,19 +51,22 @@ public class PlayerJetpack : MonoBehaviour
                 slider.value = fuel;
             }
         }
-
         // Use jetpack only while holding jump and having fuel
         if (isHoldingJump && fuel > 0)
         {
-            if (fuel > 0)
-            {
-                Vector2 velocity = rb.linearVelocity;
-                velocity.y = jetpackForce;
-                rb.linearVelocity = velocity;
+                if (topHeight)
+                {
+                    Vector2 velocity = rb.linearVelocity;
+                    velocity.y = jetpackForce;
+                    rb.linearVelocity = velocity;
+                }
+                else
+                {
+                    rb.constraints = RigidbodyConstraints2D.FreezeRotation | RigidbodyConstraints2D.FreezePositionY;
+                }
                 fuel -= fuelUsePerTick;
                 OnChangeFuel?.Invoke(fuel);
                 slider.value = fuel;
-            }
         }
         else
         {
@@ -67,6 +74,8 @@ public class PlayerJetpack : MonoBehaviour
             {
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
             }
+            rb.constraints = RigidbodyConstraints2D.None;
+            rb.constraints = RigidbodyConstraints2D.FreezeRotation;
         }
     }
 
@@ -88,6 +97,14 @@ public class PlayerJetpack : MonoBehaviour
         RaycastHit2D[] hits = new RaycastHit2D[2];
 
         int count = Physics2D.Raycast(origin, Vector2.down, filter, hits, groundCheckDistance);
+        return count > 0;
+    }
+    private bool IsTopHeight()
+    {
+        Vector2 origin = (Vector2)transform.position + Vector2.down * 0.5f;
+        RaycastHit2D[] hits = new RaycastHit2D[2];
+
+        int count = Physics2D.Raycast(origin, Vector2.down, filter, hits, hoverDistance);
         return count > 0;
     }
 }
